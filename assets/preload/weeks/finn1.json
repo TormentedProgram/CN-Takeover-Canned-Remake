@@ -1,0 +1,32 @@
+{
+	"songs": [
+		[
+			"Quiet",
+			"finn",
+			[
+				0,
+				101,
+				204
+			]
+		]
+	],
+	"hiddenUntilUnlocked": false,
+	"hideFreeplay": false,
+	"weekBackground": "quiet",
+	"difficulties": "Hard",
+	"weekCharacters": [
+		"",
+		"",
+		""
+	],
+	"storyName": "finn song 1 (CHANGE LATER)",
+	"weekName": "finn1",
+	"freeplayColor": [
+		146,
+		113,
+		253
+	],
+	"hideStoryMode": true,
+	"weekBefore": "tutorial",
+	"startUnlocked": true
+}

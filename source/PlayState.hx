@@ -156,6 +156,7 @@ class PlayState extends MusicBeatState
 	public var dad:Character = null;
 	public var gf:Character = null;
 	public var boyfriend:Boyfriend = null;
+    public var focusedCharacter:Character;
 
 	public var notes:FlxTypedGroup<Note>;
 	public var unspawnNotes:Array<Note> = [];
@@ -168,6 +169,9 @@ class PlayState extends MusicBeatState
 	public var camFollowPos:FlxObject;
 	private static var prevCamFollow:FlxPoint;
 	private static var prevCamFollowPos:FlxObject;
+    var camTween:FlxTween;
+    var camTween2:FlxTween;
+    public var animOffsetValue:Float = 20;
 
 	public var strumLineNotes:FlxTypedGroup<StrumNote>;
 	public var opponentStrums:FlxTypedGroup<StrumNote>;
@@ -890,7 +894,7 @@ class PlayState extends MusicBeatState
 				{
 					if(file.endsWith('.lua') && !filesPushed.contains(file))
 					{
-						luaArray.push(new FunkinLua(folder + file));
+						luaArray.push(new FunkinLua(folder + file, false));
 						filesPushed.push(file);
 					}
 				}
@@ -1215,13 +1219,32 @@ class PlayState extends MusicBeatState
 				{
 					if(file.endsWith('.lua') && !filesPushed.contains(file))
 					{
-						luaArray.push(new FunkinLua(folder + file));
+						luaArray.push(new FunkinLua(folder + file, false));
 						filesPushed.push(file);
 					}
 				}
 			}
 		}
 		#end
+
+        runLuaCode("
+            function onEvent(name,value1,value2)
+                if name == 'Set Cam Zoom' then
+                    if value2 == '' then
+                        setProperty('defaultCamZoom',value1)
+                        debugPrint(value2 )
+                    else
+                        doTweenZoom('camz','camGame',tonumber(value1),tonumber(value2),'sineInOut')
+                    end       
+                end
+            end
+            
+            function onTweenCompleted(name)
+                if name == 'camz' then
+                    setProperty('defaultCamZoom',getProperty('camGame.zoom')) 
+                end
+            end
+        ");
 
 		var daSong:String = Paths.formatToSongPath(curSong);
 		if (isStoryMode && !seenCutscene)
@@ -1533,7 +1556,7 @@ class PlayState extends MusicBeatState
 			{
 				if(script.scriptName == luaFile) return;
 			}
-			luaArray.push(new FunkinLua(luaFile));
+			luaArray.push(new FunkinLua(luaFile, false));
 		}
 		#end
 	}
@@ -2701,6 +2724,12 @@ class PlayState extends MusicBeatState
 				}
 			}
 
+            if(camTween != null) {
+                camTween.active = false;
+            }
+            if(camTween2 != null) {
+                camTween2.active = false;
+            }
 			for (tween in modchartTweens) {
 				tween.active = false;
 			}
@@ -2737,6 +2766,12 @@ class PlayState extends MusicBeatState
 				}
 			}
 
+            if(camTween != null) {
+                camTween.active = true;
+            }
+            if(camTween2 != null) {
+                camTween2.active = true;
+            }
 			for (tween in modchartTweens) {
 				tween.active = true;
 			}
@@ -2953,9 +2988,42 @@ class PlayState extends MusicBeatState
 				}
 		}
 
+        var charAnimOffsetX:Float = 0;
+		var charAnimOffsetY:Float = 0;
+		if(focusedCharacter!=null){
+			if(focusedCharacter.animation.curAnim!=null){
+				switch (focusedCharacter.animation.curAnim.name.substring(4)){
+					case 'UP' | 'UP-alt' | 'UPmiss':
+						charAnimOffsetY -= animOffsetValue;
+					case 'DOWN' | 'DOWN-alt' |  'DOWNmiss':
+						charAnimOffsetY += animOffsetValue;
+					case 'LEFT' | 'LEFT-alt' | 'LEFTmiss':
+						charAnimOffsetX -= animOffsetValue;
+					case 'RIGHT' | 'RIGHT-alt' | 'RIGHTmiss':
+						charAnimOffsetX += animOffsetValue;
+				}
+			}
+		}
+
 		if(!inCutscene) {
-			var lerpVal:Float = CoolUtil.boundTo(elapsed * 2.4 * cameraSpeed * playbackRate, 0, 1);
-			camFollowPos.setPosition(FlxMath.lerp(camFollowPos.x, camFollow.x, lerpVal), FlxMath.lerp(camFollowPos.y, camFollow.y, lerpVal));
+            if(camTween != null) {
+				camTween.cancel();
+			}
+            if(camTween2 != null) {
+				camTween2.cancel();
+			}
+            camTween = FlxTween.tween(camFollowPos, {
+                x: camFollow.x + charAnimOffsetX, 
+                y: camFollow.y + charAnimOffsetY,
+                angle: camGame.angle + charAnimOffsetX}, 
+                0.3 / cameraSpeed / playbackRate, {
+                ease: FlxEase.linear
+            });
+            camTween2 = FlxTween.tween(camGame, {
+                angle: 0 - charAnimOffsetX / 16}, 
+                0.4 / cameraSpeed / playbackRate, {
+                ease: FlxEase.linear
+            });
 			if(!startingSong && !endingSong && boyfriend.animation.curAnim != null && boyfriend.animation.curAnim.name.startsWith('idle')) {
 				boyfriendIdleTime += elapsed;
 				if(boyfriendIdleTime >= 0.15) { // Kind of a mercy thing for making the achievement easier to get as it's apparently frustrating to some playerss
@@ -3770,13 +3838,17 @@ class PlayState extends MusicBeatState
 
 		if (!SONG.notes[curSection].mustHitSection)
 		{
-			moveCamera(true);
-			callOnLuas('onMoveCamera', ['dad']);
+			if(focusedCharacter!=dad) {
+				moveCamera(true);
+				callOnLuas('onMoveCamera', ['dad']);
+			}
 		}
 		else
 		{
-			moveCamera(false);
-			callOnLuas('onMoveCamera', ['boyfriend']);
+			if(focusedCharacter!=boyfriend) {
+				moveCamera(false);
+				callOnLuas('onMoveCamera', ['boyfriend']);
+			}
 		}
 	}
 
@@ -3785,6 +3857,7 @@ class PlayState extends MusicBeatState
 	{
 		if(isDad)
 		{
+			focusedCharacter=dad;
 			camFollow.set(dad.getMidpoint().x + 150, dad.getMidpoint().y - 100);
 			camFollow.x += dad.cameraPosition[0] + opponentCameraOffset[0];
 			camFollow.y += dad.cameraPosition[1] + opponentCameraOffset[1];
@@ -3793,6 +3866,7 @@ class PlayState extends MusicBeatState
 		else
 		{
 			camFollow.set(boyfriend.getMidpoint().x - 100, boyfriend.getMidpoint().y - 100);
+			focusedCharacter=boyfriend;
 			camFollow.x -= boyfriend.cameraPosition[0] - boyfriendCameraOffset[0];
 			camFollow.y += boyfriend.cameraPosition[1] + boyfriendCameraOffset[1];
 
@@ -4963,6 +5037,10 @@ class PlayState extends MusicBeatState
 
 	var lastBeatHit:Int = -1;
 
+    public function runLuaCode(string:String) {
+        luaArray.push(new FunkinLua(string, true));
+    }
+
 	override function beatHit()
 	{
 		super.beatHit();
@@ -5101,7 +5179,7 @@ class PlayState extends MusicBeatState
 		var luaToLoad:String = Paths.modFolders(luaFile);
 		if(FileSystem.exists(luaToLoad))
 		{
-			luaArray.push(new FunkinLua(luaToLoad));
+			luaArray.push(new FunkinLua(luaToLoad, false));
 			return true;
 		}
 		else
@@ -5109,7 +5187,7 @@ class PlayState extends MusicBeatState
 			luaToLoad = Paths.getPreloadPath(luaFile);
 			if(FileSystem.exists(luaToLoad))
 			{
-				luaArray.push(new FunkinLua(luaToLoad));
+				luaArray.push(new FunkinLua(luaToLoad, false));
 				return true;
 			}
 		}
@@ -5117,7 +5195,7 @@ class PlayState extends MusicBeatState
 		var luaToLoad:String = Paths.getPreloadPath(luaFile);
 		if(OpenFlAssets.exists(luaToLoad))
 		{
-			luaArray.push(new FunkinLua(luaToLoad));
+			luaArray.push(new FunkinLua(luaToLoad, false));
 			return true;
 		}
 		#end
