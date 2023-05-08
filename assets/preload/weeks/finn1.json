@@ -8,6 +8,24 @@
 				101,
 				204
 			]
+		],
+        [
+			"Brothers in Arms",
+			"finn",
+			[
+				0,
+				101,
+				204
+			]
+		],
+        [
+			"My Brother",
+			"jake",
+			[
+				0,
+				101,
+				204
+			]
 		]
 	],
 	"hiddenUntilUnlocked": false,
@@ -19,7 +37,7 @@
 		"",
 		""
 	],
-	"storyName": "finn song 1 (CHANGE LATER)",
+	"storyName": "idk",
 	"weekName": "finn1",
 	"freeplayColor": [
 		146,
