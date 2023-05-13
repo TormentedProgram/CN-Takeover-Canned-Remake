@@ -151,6 +151,8 @@ class PlayState extends MusicBeatState
 	public static var storyDifficulty:Int = 1;
 
 	public var spawnTime:Float = 2000;
+    var gfSPEAKING:Bool = false;
+    var thirdStrum:Bool = false;
 
 	public var vocals:FlxSound;
 
@@ -176,6 +178,7 @@ class PlayState extends MusicBeatState
 
 	public var strumLineNotes:FlxTypedGroup<StrumNote>;
 	public var opponentStrums:FlxTypedGroup<StrumNote>;
+    public var opponentStrums2:FlxTypedGroup<StrumNote>;
 	public var playerStrums:FlxTypedGroup<StrumNote>;
 	public var grpNoteSplashes:FlxTypedGroup<NoteSplash>;
 
@@ -631,17 +634,19 @@ class PlayState extends MusicBeatState
 
         if (stageData.hide_girlfriend) {
             gf.visible = false;
-        }
+        }   
 
 		dad = new Character(0, 0, SONG.player2);
 		startCharacterPos(dad, true);
-		dadGroup.add(dad);
-		startCharacterLua(dad.curCharacter);
 
-		boyfriend = new Boyfriend(0, 0, SONG.player1);
+        boyfriend = new Boyfriend(0, 0, SONG.player1);
 		startCharacterPos(boyfriend);
+
 		boyfriendGroup.add(boyfriend);
 		startCharacterLua(boyfriend.curCharacter);
+
+        dadGroup.add(dad);
+		startCharacterLua(dad.curCharacter);
 
 		var camPos:FlxPoint = new FlxPoint(girlfriendCameraOffset[0], girlfriendCameraOffset[1]);
 		if(gf != null)
@@ -752,6 +757,7 @@ class PlayState extends MusicBeatState
 		splash.alpha = 0.0;
 
 		opponentStrums = new FlxTypedGroup<StrumNote>();
+        opponentStrums2 = new FlxTypedGroup<StrumNote>();
 		playerStrums = new FlxTypedGroup<StrumNote>();
 
 		// startCountdown();
@@ -1752,6 +1758,8 @@ class PlayState extends MusicBeatState
 
 			generateStaticArrows(0);
 			generateStaticArrows(1);
+            generateStaticArrows(2);
+
 			for (i in 0...playerStrums.length) {
 				setOnLuas('defaultPlayerStrumX' + i, playerStrums.members[i].x);
 				setOnLuas('defaultPlayerStrumY' + i, playerStrums.members[i].y);
@@ -2318,6 +2326,8 @@ class PlayState extends MusicBeatState
 		switch(event.event) {
 			case 'Kill Henchmen': //Better timing so that the kill sound matches the beat intended
 				return 280; //Plays 280ms before the actual position
+            case 'Summon Third Strum': //Better timing so that the kill sound matches the beat intended
+                return 1100; //Plays 1100ms before the actual position so it starts 1.1 seconds early so it has time to finish before the event
 		}
 		return 0;
 	}
@@ -2357,8 +2367,8 @@ class PlayState extends MusicBeatState
 			{
 				playerStrums.add(babyArrow);
 			}
-			else
-			{
+
+            if (player == 0) {
 				if(ClientPrefs.middleScroll)
 				{
 					babyArrow.x += 310;
@@ -2369,10 +2379,75 @@ class PlayState extends MusicBeatState
 				opponentStrums.add(babyArrow);
 			}
 
+            if (player == 2) {
+				opponentStrums2.add(babyArrow);
+			}
+
 			strumLineNotes.add(babyArrow);
 			babyArrow.postAddedToGroup();
+
+            switch (player)
+            {
+                case 2:
+                    babyArrow.x -= 945 + i * 7; //gf
+                    babyArrow.y -= 200; //start off screen
+                    babyArrow.alpha = 0; //start alpha 0
+            }
 		}
 	}
+
+    function swapStrums(first:Int = 1, second:Int = 3, duration:Float = 0.001, easeLmao:EaseFunction = null) {
+        if (easeLmao == null) easeLmao = FlxEase.linear;
+        var firstStrumline:FlxTypedGroup<StrumNote> = new FlxTypedGroup<StrumNote>();
+        var secondStrumline:FlxTypedGroup<StrumNote> = new FlxTypedGroup<StrumNote>();
+        switch (first) {
+            case 1:
+                firstStrumline = opponentStrums;
+            case 2:
+                firstStrumline = opponentStrums2;
+            case 3:
+                firstStrumline = playerStrums;
+        }
+        switch (second) {
+            case 1:
+                secondStrumline = opponentStrums;
+            case 2:
+                secondStrumline = opponentStrums2;
+            case 3:
+                secondStrumline = playerStrums;
+        }
+        for (i in 0...4) {
+            FlxTween.tween(firstStrumline.members[i], {x: secondStrumline.members[i].x, y: secondStrumline.members[i].y}, duration, {ease: easeLmao});
+            FlxTween.tween(secondStrumline.members[i], {x: firstStrumline.members[i].x, y: firstStrumline.members[i].y}, duration, {ease: easeLmao});
+        }
+    }
+
+    function summonThirdStrum(active:Bool) {
+        switch (active) {
+            case true:
+                thirdStrum = true;
+                for (i in 0...4) {
+                    FlxTween.tween(opponentStrums2.members[i], {y: opponentStrums2.members[i].y + 200}, 1, {ease: FlxEase.quadInOut});
+                }
+                for (i in 0...4) {
+                    FlxTween.tween(opponentStrums.members[i], {x: opponentStrums.members[i].x - 93 - i * 7}, 1, {ease: FlxEase.quadInOut});
+                }
+                for (i in 0...4) {
+                    FlxTween.tween(playerStrums.members[i], {x: playerStrums.members[i].x + 125 - i * 7}, 1, {ease: FlxEase.quadInOut});
+                }
+            case false:
+                thirdStrum = false;
+                for (i in 0...4) {
+                    FlxTween.tween(opponentStrums2.members[i], {y: opponentStrums2.members[i].y - 200, alpha: 0}, 1, {ease: FlxEase.quadInOut});
+                }
+                for (i in 0...4) {
+                    FlxTween.tween(opponentStrums.members[i], {x: opponentStrums.members[i].x + 93 + i * 7}, 1, {ease: FlxEase.quadInOut});
+                }
+                for (i in 0...4) {
+                    FlxTween.tween(playerStrums.members[i], {x: playerStrums.members[i].x - 125 + i * 7}, 1, {ease: FlxEase.quadInOut});
+                }
+        }
+    }
 
 	override function openSubState(SubState:FlxSubState)
 	{
@@ -2666,20 +2741,37 @@ class PlayState extends MusicBeatState
 
         var charAnimOffsetX:Float = 0;
 		var charAnimOffsetY:Float = 0;
-		if(focusedCharacter!=null){
-			if(focusedCharacter.animation.curAnim!=null){
-				switch (focusedCharacter.animation.curAnim.name.substring(4)){
-					case 'UP' | 'UP-alt' | 'UPmiss':
-						charAnimOffsetY -= animOffsetValue;
-					case 'DOWN' | 'DOWN-alt' |  'DOWNmiss':
-						charAnimOffsetY += animOffsetValue;
-					case 'LEFT' | 'LEFT-alt' | 'LEFTmiss':
-						charAnimOffsetX -= animOffsetValue;
-					case 'RIGHT' | 'RIGHT-alt' | 'RIGHTmiss':
-						charAnimOffsetX += animOffsetValue;
-				}
-			}
-		}
+        if(gfSPEAKING && !SONG.notes[curSection].mustHitSection) {
+            if(gf!=null){
+                if(gf.animation.curAnim!=null){
+                    switch (gf.animation.curAnim.name.substring(4)){
+                        case 'UP' | 'UP-alt' | 'UPmiss':
+                            charAnimOffsetY -= animOffsetValue;
+                        case 'DOWN' | 'DOWN-alt' |  'DOWNmiss':
+                            charAnimOffsetY += animOffsetValue;
+                        case 'LEFT' | 'LEFT-alt' | 'LEFTmiss':
+                            charAnimOffsetX -= animOffsetValue;
+                        case 'RIGHT' | 'RIGHT-alt' | 'RIGHTmiss':
+                            charAnimOffsetX += animOffsetValue;
+                    }
+                }
+            }
+        }else{
+            if(focusedCharacter!=null){
+                if(focusedCharacter.animation.curAnim!=null){
+                    switch (focusedCharacter.animation.curAnim.name.substring(4)){
+                        case 'UP' | 'UP-alt' | 'UPmiss':
+                            charAnimOffsetY -= animOffsetValue;
+                        case 'DOWN' | 'DOWN-alt' |  'DOWNmiss':
+                            charAnimOffsetY += animOffsetValue;
+                        case 'LEFT' | 'LEFT-alt' | 'LEFTmiss':
+                            charAnimOffsetX -= animOffsetValue;
+                        case 'RIGHT' | 'RIGHT-alt' | 'RIGHTmiss':
+                            charAnimOffsetX += animOffsetValue;
+                    }
+                }
+            }
+        }
 
 		if(!inCutscene) {
             if(camTween != null) {
@@ -2883,8 +2975,20 @@ class PlayState extends MusicBeatState
 					notes.forEachAlive(function(daNote:Note)
 					{
 						var strumGroup:FlxTypedGroup<StrumNote> = playerStrums;
-						if(!daNote.mustPress) strumGroup = opponentStrums;
-
+                        if (thirdStrum) {
+                            if (daNote.gfNote) {
+                                strumGroup = opponentStrums2;
+                                daNote.mustPress = false;
+                            }else{
+                                if(!daNote.mustPress) {
+                                    strumGroup = opponentStrums;
+                                }
+                            }
+                        }else{
+                            if(!daNote.mustPress) {
+                                strumGroup = opponentStrums;
+                            }
+                        }
 						var strumX:Float = strumGroup.members[daNote.noteData].x;
 						var strumY:Float = strumGroup.members[daNote.noteData].y;
 						var strumAngle:Float = strumGroup.members[daNote.noteData].angle;
@@ -3027,7 +3131,6 @@ class PlayState extends MusicBeatState
 		setOnLuas('cameraY', camFollowPos.y);
 		setOnLuas('botPlay', cpuControlled);
 		callOnLuas('onUpdatePost', [elapsed]);
-
 	}
 
 	function openPauseMenu()
@@ -3087,7 +3190,7 @@ class PlayState extends MusicBeatState
 				persistentDraw = false;
 				for (tween in modchartTweens) {
 					tween.active = true;
-				}
+				}   
 				for (timer in modchartTimers) {
 					timer.active = true;
 				}
@@ -3334,6 +3437,13 @@ class PlayState extends MusicBeatState
                 }else{
                     FlxTween.tween(cinematicup, { y: -100}, val2, {ease: FlxEase.cubeOut});
                     FlxTween.tween(cinematicdown, { y: FlxG.height}, val2, {ease: FlxEase.cubeOut});
+                }
+
+            case 'Summon Third Strum':
+                if (value1.toLowerCase() == 'on') {
+                    summonThirdStrum(true);
+                }else{
+                    summonThirdStrum(false);
                 }
 
 			case 'Play Animation':
@@ -4347,7 +4457,10 @@ class PlayState extends MusicBeatState
 			var animToPlay:String = singAnimations[Std.int(Math.abs(note.noteData))] + altAnim;
 			if(note.gfNote) {
 				char = gf;
-			}
+                gfSPEAKING = true;
+			}else{
+                gfSPEAKING = false;
+            }
 
 			if(char != null)
 			{
@@ -4363,7 +4476,15 @@ class PlayState extends MusicBeatState
 		if(note.isSustainNote && !note.animation.curAnim.name.endsWith('end')) {
 			time += 0.15;
 		}
-		StrumPlayAnim(true, Std.int(Math.abs(note.noteData)), time);
+        if(!note.gfNote) {
+		    StrumPlayAnim(0, Std.int(Math.abs(note.noteData)), time);
+        }else{
+            if (thirdStrum) {
+                StrumPlayAnim(2, Std.int(Math.abs(note.noteData)), time);
+            }else{
+                StrumPlayAnim(0, Std.int(Math.abs(note.noteData)), time);
+            }
+        }
 		note.hitByOpponent = true;
 
 		callOnLuas('opponentNoteHit', [notes.members.indexOf(note), Math.abs(note.noteData), note.noteType, note.isSustainNote]);
@@ -4459,7 +4580,7 @@ class PlayState extends MusicBeatState
 				if(note.isSustainNote && !note.animation.curAnim.name.endsWith('end')) {
 					time += 0.15;
 				}
-				StrumPlayAnim(false, Std.int(Math.abs(note.noteData)), time);
+				StrumPlayAnim(1, Std.int(Math.abs(note.noteData)), time);
 			} else {
 				var spr = playerStrums.members[note.noteData];
 				if(spr != null)
@@ -4970,13 +5091,17 @@ class PlayState extends MusicBeatState
 		#end
 	}
 
-	function StrumPlayAnim(isDad:Bool, id:Int, time:Float) {
+	function StrumPlayAnim(player:Int, id:Int, time:Float) {
 		var spr:StrumNote = null;
-		if(isDad) {
+		if(player == 0) {
 			spr = strumLineNotes.members[id];
-		} else {
-			spr = playerStrums.members[id];
 		}
+        if(player == 1) {
+            spr = playerStrums.members[id];
+        }
+        if(player == 2) {
+            spr = opponentStrums2.members[id];
+        }
 
 		if(spr != null) {
 			spr.playAnim('confirm', true);

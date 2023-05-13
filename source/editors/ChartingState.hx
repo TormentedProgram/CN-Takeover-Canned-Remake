@@ -94,6 +94,9 @@ class ChartingState extends MusicBeatState
 		['Change Scroll Speed', "Value 1: Scroll Speed Multiplier (1 is default)\nValue 2: Time it takes to change fully in seconds."],
 		['Set Property', "Value 1: Variable name\nValue 2: New value"],
         ['Set Cam Zoom', "Camera Zoom"],
+        ['Camera Switch', "Camera Switch"],
+        ['Summon Third Strum','Summon Third Strum'],
+        ['Show Strums', "Show Strums"],
         ['Cinematics', "Cinematics"]
 	];
 
